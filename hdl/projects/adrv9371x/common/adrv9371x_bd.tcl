@@ -392,3 +392,74 @@ ad_cpu_interrupt ps-11 mb-14 axi_ad9371_rx_os_dma/irq
 ad_cpu_interrupt ps-12 mb-13- axi_ad9371_tx_dma/irq
 ad_cpu_interrupt ps-13 mb-12 axi_ad9371_rx_dma/irq
 
+# ===================================== DVB MODULATOR ===============================
+
+source ../../dvb_fpga/build/vivado/add_dvbs2_files.tcl
+add_files ../../dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
+
+# Create instance: dvbs2_encoder_wrapper_0, and set properties
+  set block_name dvbs2_encoder_wrapper
+  set block_cell_name dvbs2_encoder_wrapper_0
+  if { [catch {set dvbs2_encoder_wrapper_0 [create_bd_cell -type module -reference $block_name $block_cell_name] } errmsg] } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "Unable to add referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   } elseif { $dvbs2_encoder_wrapper_0 eq "" } {
+     catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+     return 1
+   }
+ad_connect sys_cpu_clk dvbs2_encoder_wrapper_0/clk
+ad_ip_parameter dvbs2_encoder_wrapper_0 CONFIG.INPUT_DATA_WIDTH 32
+
+ad_connect sys_cpu_resetn dvbs2_encoder_wrapper_0/rst_n
+ad_cpu_interconnect 0x43C10000 dvbs2_encoder_wrapper_0
+
+ad_connect dvbs2_encoder_wrapper_0/s_axis axi_ad9361_dac_dma/m_axis
+
+ad_ip_instance axis_data_fifo interclk
+ad_ip_parameter interclk CONFIG.FIFO_DEPTH 16
+ad_ip_parameter interclk CONFIG.FIFO_MODE 1
+ad_ip_parameter interclk CONFIG.IS_ACLK_ASYNC 1
+ad_ip_parameter interclk CONFIG.HAS_TLAST.VALUE_SRC USER
+ad_ip_parameter interclk CONFIG.HAS_TLAST 0
+
+ad_connect sys_cpu_clk interclk/s_axis_aclk
+ad_connect interclk/m_axis_aclk axi_ad9361/l_clk
+ad_connect sys_cpu_resetn interclk/s_axis_aresetn
+
+set rrc_2interpol [ create_bd_cell -type ip -vlnv xilinx.com:ip:fir_compiler:7.2 rrc_2interpol ]
+set_property -dict [ list \
+   CONFIG.Clock_Frequency {61.44} \
+   CONFIG.CoefficientSource {COE_File} \
+   CONFIG.Coefficient_File {../../../../../../filterrrc_4_63.coe} \
+   CONFIG.Coefficient_Fractional_Bits {0} \
+   CONFIG.Coefficient_Sets {1} \
+   CONFIG.Coefficient_Sign {Signed} \
+   CONFIG.Coefficient_Structure {Inferred} \
+   CONFIG.Coefficient_Width {16} \
+   CONFIG.ColumnConfig {8} \
+   CONFIG.DATA_Has_TLAST {Not_Required} \
+   CONFIG.Data_Fractional_Bits {15} \
+   CONFIG.Decimation_Rate {1} \
+   CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
+   CONFIG.Filter_Type {Interpolation} \
+   CONFIG.Interpolation_Rate {4} \
+   CONFIG.M_DATA_Has_TREADY {true} \
+   CONFIG.Number_Channels {1} \
+   CONFIG.Number_Paths {2} \
+   CONFIG.Output_Rounding_Mode {Symmetric_Rounding_to_Zero} \
+   CONFIG.Output_Width {16} \
+   CONFIG.Quantization {Integer_Coefficients} \
+   CONFIG.RateSpecification {Frequency_Specification} \
+   CONFIG.S_DATA_Has_FIFO {true} \
+   CONFIG.Sample_Frequency {15.36} \
+   CONFIG.Zero_Pack_Factor {1} \
+ ] $rrc_2interpol
+
+ad_connect dvbs2_encoder_wrapper_0/m_axis rrc_2interpol/S_AXIS_DATA
+ad_connect  sys_cpu_clk rrc_2interpol/aclk
+ad_connect rrc_2interpol/M_AXIS_DATA interclk/S_AXIS
+ad_connect interclk/M_AXIS tx_upack/s_axis
+
+#without interpol
+#ad_connect dvbs2_encoder_wrapper_0/m_axis interclk/S_AXIS
+

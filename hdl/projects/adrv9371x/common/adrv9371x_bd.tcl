@@ -393,9 +393,8 @@ ad_cpu_interrupt ps-12 mb-13- axi_ad9371_tx_dma/irq
 ad_cpu_interrupt ps-13 mb-12 axi_ad9371_rx_dma/irq
 
 # ===================================== DVB MODULATOR ===============================
-
-source ../../dvb_fpga/build/vivado/add_dvbs2_files.tcl
-add_files ../../dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
+source /home/anshul/phase4/adi_adrv9371_zc706/dvb_fpga/build/vivado/add_dvbs2_files.tcl
+add_files /home/anshul/phase4/adi_adrv9371_zc706/dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
 
 # Create instance: dvbs2_encoder_wrapper_0, and set properties
   set block_name dvbs2_encoder_wrapper
@@ -407,12 +406,15 @@ add_files ../../dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
      catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
      return 1
    }
+
 ad_connect sys_cpu_clk dvbs2_encoder_wrapper_0/clk
 ad_ip_parameter dvbs2_encoder_wrapper_0 CONFIG.INPUT_DATA_WIDTH 32
 
 ad_connect sys_cpu_resetn dvbs2_encoder_wrapper_0/rst_n
-ad_cpu_interconnect 0x43C10000 dvbs2_encoder_wrapper_0
+#ad_cpu_interconnect 0x43C10000 dvbs2_encoder_wrapper_0
+ad_cpu_interconnect 0x44AB8000 dvbs2_encoder_wrapper_0
 
+if 0 {
 ad_connect dvbs2_encoder_wrapper_0/s_axis axi_ad9361_dac_dma/m_axis
 
 ad_ip_instance axis_data_fifo interclk
@@ -462,4 +464,4 @@ ad_connect interclk/M_AXIS tx_upack/s_axis
 
 #without interpol
 #ad_connect dvbs2_encoder_wrapper_0/m_axis interclk/S_AXIS
-
+}

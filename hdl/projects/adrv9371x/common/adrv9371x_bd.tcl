@@ -293,11 +293,11 @@ ad_connect  util_ad9371_tx_upack/s_axis_data axi_ad9371_dacfifo/dac_data
 
 ad_connect  $sys_dma_clk axi_ad9371_dacfifo/dma_clk
 ad_connect  $sys_dma_clk axi_ad9371_tx_dma/m_axis_aclk
-ad_connect  axi_ad9371_dacfifo/dma_valid axi_ad9371_tx_dma/m_axis_valid
-ad_connect  axi_ad9371_dacfifo/dma_data axi_ad9371_tx_dma/m_axis_data
-ad_connect  axi_ad9371_dacfifo/dma_ready axi_ad9371_tx_dma/m_axis_ready
+#ad_connect  axi_ad9371_dacfifo/dma_valid axi_ad9371_tx_dma/m_axis_valid
+#ad_connect  axi_ad9371_dacfifo/dma_data axi_ad9371_tx_dma/m_axis_data
+#ad_connect  axi_ad9371_dacfifo/dma_ready axi_ad9371_tx_dma/m_axis_ready
 ad_connect  axi_ad9371_dacfifo/dma_xfer_req axi_ad9371_tx_dma/m_axis_xfer_req
-ad_connect  axi_ad9371_dacfifo/dma_xfer_last axi_ad9371_tx_dma/m_axis_last
+#ad_connect  axi_ad9371_dacfifo/dma_xfer_last axi_ad9371_tx_dma/m_axis_last
 ad_connect  axi_ad9371_dacfifo/dac_dunf tx_ad9371_tpl_core/dac_dunf
 ad_connect  axi_ad9371_dacfifo/bypass dac_fifo_bypass
 ad_connect  $sys_dma_resetn axi_ad9371_tx_dma/m_src_axi_aresetn
@@ -418,7 +418,7 @@ ad_cpu_interconnect 0x44AB8000 dvbs2_encoder_wrapper_0
 ad_connect axi_ad9371_tx_dma/m_axis_data dvbs2_encoder_wrapper_0/s_axis_tdata
 ad_connect axi_ad9371_tx_dma/m_axis_last dvbs2_encoder_wrapper_0/s_axis_tlast
 ad_connect axi_ad9371_tx_dma/m_axis_valid dvbs2_encoder_wrapper_0/s_axis_tvalid
-ad_connect axi_ad9371_tx_dma/m_axis_ready get_bd_pins dvbs2_encoder_wrapper_0/s_axis_tready
+ad_connect axi_ad9371_tx_dma/m_axis_ready dvbs2_encoder_wrapper_0/s_axis_tready
 
 ad_connect axi_ad9371_dacfifo/dma_data dvbs2_encoder_wrapper_0/m_axis_tdata
 ad_connect axi_ad9371_dacfifo/dma_xfer_last dvbs2_encoder_wrapper_0/m_axis_tlast

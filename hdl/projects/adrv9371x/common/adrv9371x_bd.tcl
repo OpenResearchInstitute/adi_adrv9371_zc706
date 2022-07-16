@@ -414,6 +414,17 @@ ad_connect sys_cpu_resetn dvbs2_encoder_wrapper_0/rst_n
 #ad_cpu_interconnect 0x43C10000 dvbs2_encoder_wrapper_0
 ad_cpu_interconnect 0x44AB8000 dvbs2_encoder_wrapper_0
 
+ad_connect axi_ad9371_tx_dma/m_axis_data dvbs2_encoder_wrapper_0/s_axis_tdata
+ad_connect axi_ad9371_tx_dma/m_axis_last dvbs2_encoder_wrapper_0/s_axis_tlast
+ad_connect axi_ad9371_tx_dma/m_axis_valid dvbs2_encoder_wrapper_0/s_axis_tvalid
+ad_connect axi_ad9371_tx_dma/m_axis_ready get_bd_pins dvbs2_encoder_wrapper_0/s_axis_tready
+
+ad_connect axi_ad9371_dacfifo/dma_data dvbs2_encoder_wrapper_0/m_axis_tdata
+ad_connect axi_ad9371_dacfifo/dma_xfer_last dvbs2_encoder_wrapper_0/m_axis_tlast
+ad_connect axi_ad9371_dacfifo/dma_valid dvbs2_encoder_wrapper_0/m_axis_tvalid
+ad_connect axi_ad9371_dacfifo/dma_ready dvbs2_encoder_wrapper_0/m_axis_tready
+
+
 if 0 {
 ad_connect dvbs2_encoder_wrapper_0/s_axis axi_ad9361_dac_dma/m_axis
 

@@ -393,8 +393,8 @@ ad_cpu_interrupt ps-12 mb-13- axi_ad9371_tx_dma/irq
 ad_cpu_interrupt ps-13 mb-12 axi_ad9371_rx_dma/irq
 
 # ===================================== DVB MODULATOR ===============================
-source ../../../dvb_fpga/build/vivado/add_dvbs2_files.tcl
-add_files ../../../dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
+source ../../../../dvb_fpga/build/vivado/add_dvbs2_files.tcl
+add_files ../../../../dvb_fpga/build/vivado/dvbs2_encoder_wrapper.vhd
 
 
 # Create instance: dvbs2_encoder_wrapper_0, and set properties

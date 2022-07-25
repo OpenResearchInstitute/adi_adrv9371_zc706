@@ -3,5 +3,5 @@
 	url = https://github.com/phase4ground/dvb_fpga.git
 [submodule "hdl"]
 	path = hdl
-	url = https://github.com/phase4ground/hdl
+	url = https://github.com/phase4ground/hdl.git
 	branch = hdl_2021_r1

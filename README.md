@@ -20,8 +20,8 @@ cd into dvb-fpga.
 git submodule init
 
 git submodule update
-
-This set of commands gives you the nested "third party" submodule. 
+_
+This set of commands gives you the nested "third party" submodule. _It might be better to use --recursive._
 
 cd to the directory corresponding to adrv9371/zc706.
 

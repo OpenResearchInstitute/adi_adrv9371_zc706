@@ -13,8 +13,6 @@ git submodule init
 
 git submodule update
 
-_checkout the hdl_2021_r1 branch of the HDL_ We are trying to make this happen automatically, but double-check it with git status to make sure you have the right branch. 
-
 cd into dvb-fpga.
 
 git submodule init

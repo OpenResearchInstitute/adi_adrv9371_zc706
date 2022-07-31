@@ -9,19 +9,11 @@ Clone this repository.
 
 cd into the directory created.
 
-git submodule init
+```git submodule update --init --recursive```
 
-git submodule update
+```git submodule update --recursive```
 
-_checkout the hdl_2021_r1 branch of the HDL_ We are trying to make this happen automatically, but double-check it with git status to make sure you have the right branch. 
-
-cd into dvb-fpga.
-
-git submodule init
-
-git submodule update
-_
-This set of commands gives you the nested "third party" submodule. _It might be better to use --recursive._
+This should intialize both dvb_fpga and hdl, and the nested submodules within dvb_fpga. 
 
 cd to the directory corresponding to adrv9371/zc706.
 

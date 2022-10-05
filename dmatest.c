@@ -48,7 +48,7 @@ int main()
 	unsigned int *dma_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x7c420000);
 	
 	printf("Memory map the address of the DVB-ENCODER via its AXI lite control interface.\n");
-	unsigned int *encoder_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x44ab8000);
+	unsigned int *encoder_virtual_addr = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, ddr_memory, 0x44ac0000);
 
 	printf("Create a buffer for the transmitted data.\n");
 	unsigned int transmit_data[4*100];
@@ -61,7 +61,7 @@ int main()
 	write_dma(dma_virtual_addr, TX_DMAC_SCRATCH, 0x5555AAAA);
 	printf("Reading from scratch register. We see: (0x%08x@%02x)\n", read_dma(dma_virtual_addr, TX_DMAC_SCRATCH), TX_DMAC_SCRATCH);
 
-	printf("Reading frome the encoder to see what's there: (0x%08x@%02x)\n", read_dma(encoder_virtual_addr, ENCODER_CONTROL_REGISTER), ENCODER_CONTROL_REGISTER);
+	printf("Reading from the encoder to see what's there: (0x%08x@%02x)\n", read_dma(encoder_virtual_addr, ENCODER_CONTROL_REGISTER), ENCODER_CONTROL_REGISTER);
 
 	printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
 	printf("Configure a direct memory access test.\n");

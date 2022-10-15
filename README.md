@@ -1,7 +1,9 @@
 # adi_adrv9371_zc706
 
 ## What is this?
-Analog Device's adrv9371 HDL Reference Design with DVB-S2 integration. A processor side c code example (dmatest.c) for register reads and writes is included. 
+Analog Device's adrv9371 HDL Reference Design with DVB-S2 integration. 
+
+Processor System source code samples for register reads and writes and transmitting are included in the PS_side_programs folder. 
 
 ## How do I use it?
 

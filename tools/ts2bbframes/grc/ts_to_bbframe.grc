@@ -1,0 +1,208 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: Custom
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: dvbs2_tx
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: ''
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 11]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: bb_frame_length
+  id: variable
+  parameters:
+    comment: Must be updated to match the code rate setting in the BBheader block.
+    value: '384'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 332.0]
+    rotation: 0
+    state: enabled
+- name: mode_word
+  id: variable
+  parameters:
+    comment: Dummy value for now
+    value: (0xaa,0xbb,0xcd,0xef)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 76.0]
+    rotation: 0
+    state: true
+- name: root_filename
+  id: variable
+  parameters:
+    comment: ''
+    value: '"QPSK-1-4-3.6588"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 220.0]
+    rotation: 0
+    state: true
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: root_filename+".ts4"
+    type: byte
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1120, 204.0]
+    rotation: 0
+    state: true
+- name: blocks_file_source_0
+  id: blocks_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    begin_tag: pmt.PMT_NIL
+    comment: ''
+    file: root_filename+".ts"
+    length: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    repeat: 'False'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 204.0]
+    rotation: 0
+    state: enabled
+- name: blocks_stream_mux_0
+  id: blocks_stream_mux
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    lengths: (4,bb_frame_length)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '2'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [912, 208.0]
+    rotation: 0
+    state: true
+- name: blocks_unpacked_to_packed_xx_0
+  id: blocks_unpacked_to_packed_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    bits_per_chunk: '1'
+    comment: ''
+    endianness: gr.GR_MSB_FIRST
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_ports: '1'
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [648, 228.0]
+    rotation: 0
+    state: true
+- name: blocks_vector_source_x_0
+  id: blocks_vector_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    repeat: 'True'
+    tags: '[]'
+    type: byte
+    vector: mode_word
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [424, 100.0]
+    rotation: 0
+    state: true
+- name: dtv_dvb_bbheader_bb_0
+  id: dtv_dvb_bbheader_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    fecblocks: '168'
+    framesize1: FECFRAME_NORMAL
+    framesize2: FECFRAME_SHORT
+    inband: INBAND_OFF
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    mode: INPUTMODE_NORMAL
+    rate1: C1_2
+    rate2: C1_3
+    rate3: C9_10
+    rate4: C1_5_MEDIUM
+    rate5: C1_4
+    rolloff: RO_0_35
+    standard: STANDARD_DVBS2
+    tsrate: '4000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [432, 212.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [blocks_file_source_0, '0', dtv_dvb_bbheader_bb_0, '0']
+- [blocks_stream_mux_0, '0', blocks_file_sink_0, '0']
+- [blocks_unpacked_to_packed_xx_0, '0', blocks_stream_mux_0, '1']
+- [blocks_vector_source_x_0, '0', blocks_stream_mux_0, '0']
+- [dtv_dvb_bbheader_bb_0, '0', blocks_unpacked_to_packed_xx_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.3.0

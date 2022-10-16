@@ -243,6 +243,7 @@ int main (__notused int argc, __notused char **argv)
     }
  
     printf("* Starting IO streaming (press CTRL+C to cancel)\n");
+    printf("* Prepare to clean / simplify this basic test ... Validate a git push\n");
     while (!stop)
     {
         ssize_t nbytes_rx, nbytes_tx;

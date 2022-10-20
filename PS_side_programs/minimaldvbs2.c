@@ -27,7 +27,15 @@
 #include <string.h>
 #include <signal.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <iio.h>
+
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+ #include <unistd.h>
+#include <fcntl.h>
 
 /* RX is input, TX is output */
 enum iodev
@@ -51,6 +59,49 @@ static struct iio_channel *m_tx0_q = NULL;
 static char tmpstr[255];
 
 static int want_quit = 0;
+
+static int fdregister=NULL;
+    static unsigned page_addr, page_offset;
+	static void *ptr=NULL;
+static unsigned page_size;
+
+void InitDevMem(size_t Address)
+{
+    
+
+    page_size=sysconf(_SC_PAGESIZE);
+
+    fdregister = open ("/dev/mem", O_RDWR);
+    unsigned gpio_addr = Address; //Fixme if high mem
+    page_addr = (gpio_addr & (~(page_size-1)));
+	
+	ptr = mmap(NULL, page_size, PROT_READ|PROT_WRITE, MAP_SHARED, fdregister, page_addr);
+    
+}    
+
+
+size_t ReadRegister( size_t Address)
+{
+   // writeiiohex(sPath, Address);
+   // size_t Value = readiiohex(sPath);
+    InitDevMem(Address);
+    page_offset = Address - page_addr;
+    size_t value = *((unsigned *)(ptr + page_offset));
+
+    munmap(ptr, page_size);
+    close(fdregister);
+    return value;
+}
+
+void WriteRegister(size_t Address, size_t RegisterValue)
+{
+     InitDevMem(Address);
+     page_offset = Address - page_addr;
+     *((unsigned *)(ptr + page_offset)) = RegisterValue;
+     munmap(ptr, page_size);
+    close(fdregister);
+    //writeiiohex(sPath, Address, RegisterValue);
+}
 
 bool SendCommand(char *skey, char *svalue)
 {
@@ -175,16 +226,7 @@ ssize_t write_byte_from_buffer_burst(unsigned char *Buffer, int len)
     else
         sent=0;    
    
-   // Is it underrrun ?
-   /* 
-    uint32_t val = 0;
-    int ret = iio_device_reg_read(m_tx, 0x80000088, &val);
-    if (val & 1)
-    {
-        fprintf(stderr, "@");fflush(stderr);
-        iio_device_reg_write(m_tx, 0x80000088, val); // Clear bits
-    }
-    */
+   
     return sent;
 }
 
@@ -196,6 +238,19 @@ static void signal_handler(int signal)
 	
 }
 
+
+
+ debug_dvbs2_register()
+ {
+     #ifdef PLUTO
+        uint32_t BaseAdress=0x43C10000;
+     #else   
+        uint32_t BaseAdress=0x44ac0000;
+    #endif     
+    //fprintf(stderr,"Depth %d\n",ReadRegister(BaseAdress+0x8));
+    fprintf(stderr,"Frame Length  : input %d bbscrambler %d bch %d \n",ReadRegister(BaseAdress+0xD08),ReadRegister(BaseAdress+0xE08),ReadRegister(BaseAdress+0xF08));
+    
+ }
 int main(int argc, char **argv)
 {
     signal(SIGINT, signal_handler);
@@ -205,7 +260,7 @@ int main(int argc, char **argv)
     
     #ifdef PLUTO
     //Set SymbolRate
-    SendCommand("/sys/bus/iio/devices/iio:device0/in_voltage_sampling_frequency", "5M");
+    SendCommand("/sys/bus/iio/devices/iio:device0/in_voltage_sampling_frequency", "10M");
     //Set Frequency
     SendCommand("/sys/bus/iio/devices/iio:device0/out_altvoltage1_TX_LO_frequency", "950M");
     //Set Tx Gain 
@@ -214,7 +269,7 @@ int main(int argc, char **argv)
     SendCommand("/sys/bus/iio/devices/iio:device0/out_altvoltage1_TX_LO_powerdown", "0");
     #else
     //Set SymbolRate
-    SendCommand("/sys/bus/iio/devices/iio:device3/in_voltage0_sampling_frequency", "20M");
+    SendCommand("/sys/bus/iio/devices/iio:device3/out_voltage_sampling_frequency", "50M");
     //Set Frequency
     SendCommand("/sys/bus/iio/devices/iio:device3/out_altvoltage1_TX_LO_frequency", "1200M");
     //Set Tx Gain 
@@ -243,9 +298,11 @@ int main(int argc, char **argv)
     while(!want_quit)
     {
         ssize_t written = write_byte_from_buffer_burst(pattern23,43040/8+4);
+        
         if(written!=0) 
         {
-            fprintf(stderr,"*");
+            debug_dvbs2_register();
+            //fprintf(stderr,"*");
             fflush(stderr);
         }
     }    

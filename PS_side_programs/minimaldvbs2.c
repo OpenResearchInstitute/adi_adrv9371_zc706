@@ -60,7 +60,7 @@ static char tmpstr[255];
 
 static int want_quit = 0;
 
-static int fdregister=NULL;
+static int fdregister=0;
     static unsigned page_addr, page_offset;
 	static void *ptr=NULL;
 static unsigned page_size;
@@ -240,7 +240,7 @@ static void signal_handler(int signal)
 
 
 
- debug_dvbs2_register()
+ void debug_dvbs2_register()
  {
      #ifdef PLUTO
         uint32_t BaseAdress=0x43C10000;
@@ -277,13 +277,13 @@ int main(int argc, char **argv)
    
     #endif
 
-     size_t BufferLentx=(1+(58192)/8)*16; //MAX BBFRAME LENGTH*4
+     size_t BufferLentx=(1+(58192)/8)*128; //MAX BBFRAME LENGTH*4
      InitTxChannel(BufferLentx, 2);
 
     
 
     // A QPSK FEC 2/3 BBFrame patern
-    unsigned char *pattern23 = (unsigned char *)malloc(43040/8+4);
+    unsigned char *pattern23 = (unsigned char *)malloc((43040/8+4)*4);
 
     pattern23[0]=0x31;
     pattern23[1]=0x00;
@@ -297,7 +297,7 @@ int main(int argc, char **argv)
 
     while(!want_quit)
     {
-        ssize_t written = write_byte_from_buffer_burst(pattern23,43040/8+4);
+        ssize_t written = write_byte_from_buffer_burst(pattern23,(43040/8+4)/* *4 */);
         
         if(written!=0) 
         {

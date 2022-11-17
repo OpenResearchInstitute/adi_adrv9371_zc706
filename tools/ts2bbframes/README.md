@@ -12,12 +12,18 @@ For convenience in the short term, we will use MPEG Transport Streams
 the use of a variety of off-the-shelf commercial test equipment to validate
 the transmitted downlink signal.
 
+## Creating the Transport Stream from any Video
+
 It's relatively easy to convert any editable video program into a TS file,
 using ```ffmpeg```. Here's an example command line:
 
 ```
-TBD
+ffmpeg -i /dev/video0 -vcodec libx264 -preset ultrafast -tune zerolatency -acodec copy -muxrate 17413400 -f mpegts pipe:1 > ~/Documents/test.ts
 ```
+
+... where ~/Documents/test.ts was created with mkfifo, and the muxrate comes from W6RZ's dvbs2rate program.
+
+## Contents of the Transport Stream File
 
 The TS file is made up of fixed-length 188-byte packets. These form the
 payload of the BBFRAMEs. In the nomenclature of the DVB-S2 specification,
@@ -26,7 +32,9 @@ byte, which is always 0x47 (ASCII 'G').
 
 According to 5.1.4 of the DVB-S2 spec, the Sync byte is to be moved into
 the BBHEADER SYNC field and replaced inline by the CRC-8 computed over
-the 187 other bytes of the previous UP. 
+the 187 other bytes of the previous UP.
+
+## Packing TS Packets into BBFRAMEs
 
 The payload length of a BBFRAME is not an integer multiple of the length
 of a UP. There are two ways of packing UPs into BBFRAMEs. Per 5.1.5 of
@@ -45,3 +53,24 @@ fill up the BBFRAME with data and not use padding.
 In that case we are also required to compute the SYNCD field of the
 BBHEADER. This field identifies where in the BBFRAME the first whole
 UP starts.
+
+## Streaming BBFRAMEs with COBS
+
+Originally we planned to just send modeword, BBFRAME, modeword, BBFRAME with
+no framing. That's what the Inline Stream Adapter (VHDL entity) is designed for.
+The Jupyter notebook `ts2bbframes.ipynb` handles that case.
+
+That scheme is rather fragile, though. If the receiver ever gets out of sync
+with where the modewords and frame boundaries are, it can never recover
+(except by accident). To avoid this problem, and for other considerations
+of convenience, we've decided to frame the (modeword, BBFRAME) pairs using
+the protocol known as Consistent Overhead Byte Stuffing, or COBS. See
+[this IEEE/ACM Transactions on Networking paper](http://www.stuartcheshire.org/papers/cobsforton.pdf).
+We're adding a COBS Decoder VHDL entity in front of the Inline Strem Adapter.
+The Jupyter notebook `tsbbframes-COBS.ipynb` creates the output file with
+COBS framing built in. It should be possible to stream this output file to
+the device without any worry.
+
+As a cross-check on the COBS-framed output file, the Jupyter notebook
+`cobs-checkfile.ipynb` reads the encoded file and reports on the BBFRAMEs
+it found in the file.

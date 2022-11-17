@@ -15,6 +15,7 @@
 # .DS_Store
 .DS_Store
 .DS_Store?
+
 # editor debris
 *~
 .#*
@@ -25,3 +26,5 @@
 # unique to ts2bbframes
 ts/
 bbf/
+bbc/
+analyze/

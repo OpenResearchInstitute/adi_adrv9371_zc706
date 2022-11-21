@@ -111,7 +111,7 @@ The timing diagram below shows a first frame consisting of 254 data bytes, none 
 
 This is very much like the case shown in the first diagram, except that the 254-byte sequence does not include a 0 at the end. All 254 bytes are sent literally in the input data. The pseudo-length 255 is used to indicate this special case, per the COBS protocol.
 
-In this example, though, we don't really have to worry about the special case. `m_tlast` and `m_tvalid` and the two-clock-cycle gap between frames work out fine. However, later we will see that this special case does have to be handled specially when the 254-byte sequence does not fall at the end of a frame.
+In this example, though, we don't really have to worry about the special case, because the end of the long sequence is also the end of the frame. Later we will see that this special case does have to be handled specially when the 254-byte sequence does not fall at the end of a frame.
 
 ### Timing Diagram 3 Walkthrough
 

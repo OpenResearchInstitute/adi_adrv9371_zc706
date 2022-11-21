@@ -1,53 +1,75 @@
-{signal: [
+{signal:
+ [
   {name: 'clk',
    wave: 'p.........|...........'},
+
   {name: 'uncoded_data',
    wave: '22222222|222',
    data: '2 5 4 c a s e ... x y z',
    phase: -1.9
   },
+   
   {name: 'next_uncoded',
    wave: '222222',
    data: 'a b 0 c d ...',
    phase: -15.9
   },
+   
   ['Input',
-  {name: 's_tdata',
-   wave: '2344444444|44423443444',
-   data: '0 FF 2 5 4 c a s e ... x y z 0 3 a b 4 c d ...',
+   {name: 's_tdata',
+    wave: '2344444444|44423443444',
+    data: '0 FF 2 5 4 c a s e ... x y z 0 3 a b 4 c d ...',
+    phase: 0.1
+   },
+  ],
+   
+  {name: 'tdata_d',
+   wave: 'x234444444|44442344344',
+   data: '0 FF 2 5 4 c a s e ... x y z 0 3 a b 4 c ...',
    phase: 0.1
   },
-   ],
+   
+  {name: 'frame_sep',
+   wave: '010.......|....10.....',
+  },
 
   {name: 'ctr_load',
-   wave: 'p.Pp......|....P.p.Pp.'
+   wave: 'p..Pp.....|.....P.p.Pp'
   },
+   
   {name: 'count',
-   wave: 'xx55555555|55555555555',
-   data: '255 254 253 253 252 251 250 ... 4 3 2 1 0 3 2 1 4 3 ...',
+   wave: 'xxx3555555|55555535535',
+   data: '255 254 253 253 252 251 250 ... 4 3 2 1 0 3 2 1 4  ...',
    phase: 0.1
   },
-   ['Output',
-  {name: 'm_tdata',
-   wave: 'xxx6666666|6666xx66666',
-   data: '2 5 4 c a s ... w x y z a b 0 c ...',
+   
+  ['Output',
+   {name: 'm_tdata',
+    wave: 'xxxx666666|66666xx6666',
+    data: '2 5 4 c a s ... w x y z a b 0 ...',
+    phase: 0.1
+   },
+   
+   {name: 'm_tlast',
+    wave: '0.........|....10.....',
+    phase: 0.1
+   },
+   
+   {name: 'm_tvalid',
+   wave: '0...1.....|.....0.1...',
    phase: 0.1
-  },
-  {name: 'm_tlast',
-   wave: '0.........|...10......',
-   phase: 0.1
-  },
-  {name: 'm_tvalid',
-   wave: '0..1......|....0.1....',
-   phase: 0.1
-  },
-    ],
-],
-  head:{text:
+   },
+  ],
+ ],
+  
+ head:
+  {text:
   ['tspan', {class: 'h2'}, 'COBS Decoder Implementation Timing 2'],
   },
-  foot:{text:
-  ['tspan', {class: 'muted h5'},
-   'Assumes s_tvalid and m_tready stay high                             2022-11-17 Paul Williamson and Michelle Thompson'],
+   
+ foot:
+  {text:
+   ['tspan', {class: 'muted h5'},
+    'Assumes s_tvalid and m_tready stay high                             2022-11-20 Paul Williamson and Michelle Thompson'],
   },
 }

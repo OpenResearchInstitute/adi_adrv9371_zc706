@@ -1,0 +1,61 @@
+{signal: [
+  {name: 'clk',
+   wave: 'p.....................'},
+  {name: 'uncoded_data',
+   wave: '2x2222x222',
+   data: 'a b c 0 d e f 0',
+   phase: -3.9
+  },
+  {name: 'next_uncoded',
+   wave: '22222',
+   data: 'g h i 0 ...',
+   phase: -16.9
+  },
+  ['Input',
+  {name: 's_tdata',
+   wave: '2x3x4x4434x44xx2344434',
+   data: '0 4 a b c 4 d e f 0 4 g h i 4 ...',
+   phase: 0.1
+  },
+   {name: 's_tvalid',
+    wave: '1010101...01.0.1......'
+   },
+   ],
+
+  {name: '~ ctr_load',
+   wave: 'pplPlplppPplppl.pPp..P',
+  },
+  {name: 'count',
+   wave: 'xxx5.5.5555.55..555555',
+   data: '4 3 2 1 4 3 2 1 0 4 3 2 1 ...',
+   phase: 0.1
+  },
+   ['Output',
+  {name: 'm_tdata',
+   wave: 'xxxxx6.6666.66..6x6666',
+   data: 'a b c 0 d e f 0 g h i ...',
+   phase: 0.1
+  },
+  {name: 'm_tlast',
+   wave: '0...............10....',
+   phase: 0.1
+  },
+  {name: 'm_tvalid',
+   wave: '0....101...01.0.101...',
+   phase: 0.1
+  },
+    ],
+  {name: 'consumed',
+   wave: '8x8888x88xx808888',
+   data: 'a b c 0 d e f 0 g h i ...',
+   phase: -5
+  },
+],
+  head:{text:
+  ['tspan', {class: 'h2'}, 'COBS Decoder Implementation Timing 4'],
+  },
+  foot:{text:
+  ['tspan', {class: 'muted h5'},
+   'Assumes m_tready stays high                                                  2022-11-18 Paul Williamson and Michelle Thompson'],
+  },
+}

@@ -1,0 +1,53 @@
+{signal: [
+  {name: 'clk',
+   wave: 'p.........|...........'},
+  {name: 'uncoded_data',
+   wave: '22222222|222',
+   data: '2 5 4 c a s e ... x y z',
+   phase: -1.9
+  },
+  {name: 'next_uncoded',
+   wave: '222222',
+   data: 'a b 0 c d ...',
+   phase: -15.9
+  },
+  ['Input',
+  {name: 's_tdata',
+   wave: '2344444444|44423443444',
+   data: '0 FF 2 5 4 c a s e ... x y z 0 3 a b 4 c d ...',
+   phase: 0.1
+  },
+   ],
+
+  {name: 'ctr_load',
+   wave: 'p.Pp......|....P.p.Pp.'
+  },
+  {name: 'count',
+   wave: 'xx55555555|55555555555',
+   data: '255 254 253 253 252 251 250 ... 4 3 2 1 0 3 2 1 4 3 ...',
+   phase: 0.1
+  },
+   ['Output',
+  {name: 'm_tdata',
+   wave: 'xxx6666666|6666xx66666',
+   data: '2 5 4 c a s ... w x y z a b 0 c ...',
+   phase: 0.1
+  },
+  {name: 'm_tlast',
+   wave: '0.........|...10......',
+   phase: 0.1
+  },
+  {name: 'm_tvalid',
+   wave: '0..1......|....0.1....',
+   phase: 0.1
+  },
+    ],
+],
+  head:{text:
+  ['tspan', {class: 'h2'}, 'COBS Decoder Implementation Timing 2'],
+  },
+  foot:{text:
+  ['tspan', {class: 'muted h5'},
+   'Assumes s_tvalid and m_tready stay high                             2022-11-17 Paul Williamson and Michelle Thompson'],
+  },
+}

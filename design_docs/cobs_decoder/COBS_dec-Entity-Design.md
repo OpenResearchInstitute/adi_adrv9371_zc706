@@ -60,22 +60,47 @@ That's 14 total. The extra 0 at the end is not really part of the frame. It's an
 We can't see all of the second frame, but we do see the beginning of its first sequence.
   1. l m n p ... 0, length = 27
 
-The next two lines of the timing diagram show pseudo-signals that do not actually exist in the design. `pre_tvalid` is the value we'd assign to our `m_tvalid` if we were passing through the data without delay: it spans the bytes in `s_tdata` that we would be passing through. Likewise, `impossible pre_tlast` is the value we'd assign to our `m_tlast` with no delay. This is *impossible* because its value depends on the white 0 in `s_tdata` that occurs on the *following* clock cycle. This is why we have to delay the data by one clock cycle.
+The next two lines of the timing diagram show pseudo-signals that do not actually exist in the design. `pre_tvalid` is the value we'd assign to our `m_tvalid` if we were passing through the data without delay: it spans the bytes in `s_tdata` that we would be passing through. Likewise, `impossible pre_tlast` is the value we'd assign to our `m_tlast` with no delay. This is *impossible* because its value depends on the white 0 in `s_tdata` that occurs on the *following* clock cycle. This is why we have to delay the data.
 
-The next line shows `ctr_load` as a clock with emphasized rising edges. In the actual implementation, this is a one-clock-long pulse on `counter_load`, clocked on the rising edge of `clk`. We've chosen to show the clock-like representation in the diagram to emphasize the important clock edges. The counter loads on the clock edge at the end of each `s_tdata` byte containing a sequence length.
+The next line shows the input data delayed by one cycle, `tdata_d`. We can start drafting the logic equations for the decoder, shown in the gray box below. Some of these logic equations may be unfinished, and will be shown again with more refinement later in this document.
 
-The next line shows `count`. It loads with the sequence length on the `ctr_load` edges. On other clock edges, it counts down. When it reaches 1, it will be time to insert the 0 that's at the end of each short sequence. This 0 takes the place of the sequence count for the next sequence, if there is one, or otherwise the 0 separator at the end of the frame. It will also be time for another `ctr_load` edge, to capture that new sequence length in `count`. If it also loads `count` with the 0 separator, that's harmless, because the first byte *after* the 0 separator is also time for a `ctr_load` edge, which will overwrite `count` with the next sequence length.
+    on rising edge of clk, tdata_d = s_tdata
 
-    `count` is loaded from `s_tdata` on the rising edge of `clk` when `counter_load` is high
-    `count` is decremented on the rising edge of `clk` when `count` > 0
+The next two lines show the detection and delay of a zero byte in the input. When a non-zero byte follows a zero byte, that's the frame length byte at the beginning of the first sequence of a frame.
 
-The next line shows our data output, `m_tdata`. The data bytes sent literally in `s_data` are copied into `m_tdata`, with one cycle of delay. Each sequence length byte is replaced in `m_tdata` with a 0, which is the final 0 of the preceding sequence. The sequences in this diagram are all short (not 254 bytes long), so they all include a final 0 per the COBS protocol.
+    on rising edge of clk, frame_sep = 1 when tdata_d == 0, otherwise 0
+    on rising edge of clk, frame_sep_d = frame_sep
+
+The next line shows the combinational signal `counter_load`. The counter loads on the clock edge at the end of each `s_tdata` byte containing a sequence length. We also show this as a pseudo-signal `ctr_load`, which is a copy of `clk` with arrows added where the counter will be loaded, just for visual clarity in the diagram.
+
+    counter_load = '1' when (t_data_d != 0 and frame_sep_d == 1) or count == 1, else '0' 
+
+The next line shows `count`. It loads with the sequence length on the `ctr_load` edges. On other clock edges, it counts down. When it reaches 1, it will be time to insert the 0 that's (usually) at the end of each short sequence. This 0 takes the place of the sequence count for the next sequence, if there is one, or otherwise the 0 separator at the end of the frame. It will also be time for another `ctr_load` edge, to capture that new sequence length in `count`. If it also loads `count` with the 0 separator, that's harmless, because the first byte *after* the 0 separator is also time for a `ctr_load` edge, which will overwrite `count` with the next sequence length.
+
+    on the rising edge of clk,
+      if counter_load is high, load count from tdata_d
+      elsif count != 0, count = count - 1
+
+The next line shows our data output, `m_tdata`. The data bytes sent literally in `s_tdata` are copied from `tdata_d` into `m_tdata`, with one further cycle of delay. Each sequence length byte is replaced in `m_tdata` with a 0, which is the final 0 of the preceding sequence. The sequences in this diagram are all short (not 254 bytes long), so they all include a final 0 per the COBS protocol.
+
+    on the rising edge of clk,
+      if counter_load is high, load m_tdata with 0
+      else load m_tdata with tdata_d
 
 In between frames, we have a gap of two clock cycles. One cycle is the minimum COBS coding overhead. The other cycle is the frame separator. This is the best we can possibly do.
 
-The next line shows the `m_tlast` signal. It is high for the duration of the last byte in the frame. In this case, that happens to be the implied 0 at the end of the fourth sequence. Because we're running one cycle behind the input data, we can simply raise `m_tlast` combinatorially when `s_tdata` is 0, the frame separator byte.
+The next line shows the `m_tlast` signal. It is high for the duration of the last byte in the frame. In this case, that happens to be the implied 0 at the end of the fourth sequence.
 
-The next line shows the `m_tvalid` signal. This signal is high whenever valid data bytes are on `m_tdata`. This goes high two cycles after the preceding frame separator 0 byte in `s_tdata`, and goes low on the following frame separator 0 byte in `s_tdata`.
+    m_tlast = frame_sep
+
+The next line shows the `m_tvalid` signal. This signal is high whenever valid data bytes are on `m_tdata`. This goes high three cycles after the preceding frame separator 0 byte in `s_tdata`, and goes low on the following frame separator 0 byte in `s_tdata`.
+
+    on the rising edge of clk,
+      frame_sep_dd loads from frame_sep_d
+      m_tvalid goes high if frame_sep_dd is high
+      m_tvalid goes low if frame_sep is high
+
+Again, note that some of the logic equations in the gray boxes are incomplete for now.
 
 ### Timing Diagram 2 Walkthrough
 We will continue to ignore the handshaking requirements and assume that `s_tvalid` and `m_tready` (our handshaking inputs) are always high.

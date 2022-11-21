@@ -19,6 +19,7 @@ Because the output is an AXI stream, it cannot necessarily be sent out continuou
 
 ## Timing Design
 ### Required Baseline Clock Delays
+
 In some AXI-S designs, the data can flow through without any delay. That's not possible in this entity. This timing diagram illustrates why:
 
 ![Timing Diagram 0](COBS_dec_0.svg)
@@ -40,6 +41,7 @@ We will take two cycles of delay as our design baseline. Actual delays with hand
 We'll need to take special note of the input bytes that provide the length of a coded sequence, and count this value down as the remaining bytes of the sequence arrive. We'll call this value `count` and denote the counter load events as rising edges on the pseudo-signal `ctr_load` (actually we'll make a real signal `counter_load` and load `count` on a rising edge of `clk` when `counter_load` is high).
 
 ### Timing Diagram 1 Walkthrough
+
 For now, let's ignore the handshaking requirements and assume that `s_tvalid` and `m_tready` (our handshaking inputs) are always high. This is the full-speed case with no extra delays.
 
 The timing diagram below shows an example of this case. We see the entirety of one short frame, and the immediate beginning of a second frame. The first frame contains 13 bytes, as shown on the line marked `uncoded_data`. The second frame contains 27 bytes or more, and the beginning of this frame is shown on the line marked `next_uncoded`.
@@ -68,16 +70,18 @@ The next line shows the input data delayed by one cycle, `tdata_d`. We can start
 
 The next two lines show the detection and delay of a zero byte in the input. When a non-zero byte follows a zero byte, that's the frame length byte at the beginning of the first sequence of a frame.
 
-    on rising edge of clk, frame_sep = 1 when tdata_d == 0, otherwise 0
+    frame_sep = 1 when tdata_d == 0, otherwise 0
+
     on rising edge of clk, frame_sep_d = frame_sep
 
 The next line shows the combinational signal `counter_load`. The counter loads on the clock edge at the end of each `s_tdata` byte containing a sequence length. We also show this as a pseudo-signal `ctr_load`, which is a copy of `clk` with arrows added where the counter will be loaded, just for visual clarity in the diagram.
 
-    counter_load = '1' when (t_data_d != 0 and frame_sep_d == 1) or count == 1, else '0' 
+    counter_load = '1' when (tdata_d != 0 and frame_sep_d == 1) or count == 1, else '0' 
 
 The next line shows `count`. It loads with the sequence length on the `ctr_load` edges. On other clock edges, it counts down. When it reaches 1, it will be time to insert the 0 that's (usually) at the end of each short sequence. This 0 takes the place of the sequence count for the next sequence, if there is one, or otherwise the 0 separator at the end of the frame. It will also be time for another `ctr_load` edge, to capture that new sequence length in `count`. If it also loads `count` with the 0 separator, that's harmless, because the first byte *after* the 0 separator is also time for a `ctr_load` edge, which will overwrite `count` with the next sequence length.
 
     on the rising edge of clk,
+    
       if counter_load is high, load count from tdata_d
       elsif count != 0, count = count - 1
 
@@ -103,6 +107,7 @@ The next line shows the `m_tvalid` signal. This signal is high whenever valid da
 Again, note that some of the logic equations in the gray boxes are incomplete for now.
 
 ### Timing Diagram 2 Walkthrough
+
 We will continue to ignore the handshaking requirements and assume that `s_tvalid` and `m_tready` (our handshaking inputs) are always high.
 
 The timing diagram below shows a first frame consisting of 254 data bytes, none of which are 0. Some of the bytes in the middle of this frame are omitted to save space in the diagram. The last bytes in the frame are shown as v, w, x, y, z. The diagram also shows the beginning of the next frame, which starts with a three-byte sequence followed by a four-byte sequence, which falls off the right edge of the diagram.
@@ -136,6 +141,7 @@ In order to implement this special case, we create a new signal called `case_255
       m_tvalid goes low if frame_sep is high
       m_tvalid goes low if counter_load is high and case_255 is high
       m_tvalid goes high if counter_load_d is high
+
 ### Timing Diagram 4 Walkthrough
 
 Now we will begin to introduce the complexity of handling the AXI-S handshaking signals. This timing diagram shows several cases where the `s_tvalid` signal from the data source goes low.
@@ -146,17 +152,35 @@ We have shown the data source inserting delays after the frame separator 0 byte,
 
 ![Timing Diagram 4](COBS_dec_4.svg)
 
-The rising edges of `clk` that occur with `s_tvalid` low are ignored by the counter. This is shown with skipped cycles on the pseudo-clock labeled `ctr_load`. Improved rule for `count` is as follows:
+The rising edges of `clk` that occur with `s_tvalid` low need to be ignored. This is shown with skipped cycles on the pseudo-clock labeled `ctr_load`.
 
-    `count` is loaded from `s_tdata` on the rising edge of `clk` when `counter_load` is high and `s_tvalid` is high
-    `count` is decremented on the rising edge of `clk` when `count` > 0 and `s_tvalid` is high.
+We create a delayed version of `s_tvalid` called `tvalid_d` to help with this, and update the rules:
 
-The `m_tvalid` output signal, however, cannot simply ignore those clock edges. It needs to reflect the delays, but can be high for only one cycle per byte transferred, so that the data consumer will accept each byte exactly once. It's not important what data is on `m_tdata` when `m_tvalid` is low, so we can allow `m_tdata` to ignore the clock edges when `s_tvalid` is low, as shown.
+    on rising edge of clk,
+      tvalid_d is loaded from s_tvalid
+      if tvalid_d is high,
+        frame_sep_d = frame_sep
+        if counter_load is high, load count from tdata_d
+        elsif count != 0, count = count - 1
+
+    counter_load = '1' when (tdata_d != 0 and frame_sep_d == 1 and tvalid_d == 1) or (count == 1 and tvalid_d == 1), else '0' 
+
+The `m_tvalid` output signal, however, cannot simply ignore those clock edges. It needs to reflect the delays, but can be high for only one cycle per byte transferred, so that the data consumer will accept each byte exactly once. We create a signal `pre_tvalid` that is like `m_tvalid` but ignores `s_tvalid`. Then we punch out the cycles corresponding to those cycles when `s_tvalid` was low. This requires a version of `tvalid_d` delayed by a further one `clk` cycle, `tvalid_dd`.
+
+It's not important what data is on `m_tdata` when `m_tvalid` is low, so we can allow `m_tdata` to ignore the clock edges when `s_tvalid` is low, as shown.
 
 So, the improved rule for `m_tvalid` is as follows:
 
-    `m_tvalid` goes high on a rising edge of `clk` when `s_tvalid` is high and `count` is non-zero.
-    `m_tvalid` goes low on a rising edge of `clk` when `s_tvalid` is low or `count` is zero.
+    on the rising edge of clk,
+      tvalid_dd loads from tvalid_d
+      if tvalid_d is high,
+        counter_load_d loads from counter_load
+        pre_tvalid goes high if counter_load_d is high
+
+      pre_tvalid goes low if frame_sep is high
+      pre_tvalid goes low if counter_load is high and case_255 is high
+
+    m_tvalid is pre_tvalid and tvalid_dd
 
 We're still assuming `m_tready` is staying high, so this rule still isn't final!
 

@@ -18,9 +18,26 @@ The only output from the entity is an AXI-Stream with a width of one byte. This 
 Because the output is an AXI stream, it cannot necessarily be sent out continuously, with one byte delivered every clock cycle. The handshaking signals `m_tvalid` and `m_tready` take care of this. This entity asserts `m_tvalid` only when it has a valid byte available on its output. The data consumer only asserts `m_tready` when it is ready to accept a data byte. When both signals are asserted at a rising edge of `clk`, and only then, a byte is transferred from the entity to the data consumer. It is the responsibility of this entity to manage its `s_tready` based on its `m_tready` so that data flows through correctly.
 
 ## Timing Design
-The entity cannot flow data through without any delay, because the `m_tlast` signal has to be asserted during the last data byte, but cannot be determined until the 0 separator after the last byte has been seen. So, the input data must be delayed by at least one clock cycle. Our design goal will be to keep the pipeline delay within the entity to exactly one clock cycle. Actual delays with handshaking taken into account will be longer.
+### Required Baseline Clock Delays
+In some AXI-S designs, the data can flow through without any delay. That's not possible in this entity. This timing diagram illustrates why:
 
-We'll need to take special note of the input bytes that provide the length of a coded sequence, and count this value down as the remaining bytes of the sequence arrive. We'll call this value `count` and denote the counter load events as rising edges on the signal `ctr_load` (actually we'll make a signal `counter_load` and load `count` on a rising edge of `clk` when `ctr_load` is high).
+![Timing Diagram 0](COBS_dec_0.svg)
+
+Here we see an encoded sequence starting with a count of 3 and two non-zero data bytes, labeled 'a' and 'b'. In COBS encoding, this usually represents a three-byte sequence, consisting of the values of 'a' and 'b' followed by a zero byte. However, if this encoded sequence occurs at the end of the frame, it represents a two-byte sequence, with no trailing zero byte added. The value of the byte marked with a question mark determines which. If that byte is 0, it is a frame separator and the sequence is only two bytes long. If that byte is any other value, it is not a frame separator, and the sequence is three bytes long.
+
+We see the entity's output signals drawn at three different delays. In each case, the signals `m_tlast` and `m_tvalid` are shown ambiguously. `m_tlast` is always one clock cycle wide, but might appear in either location shown. It must appear in the early location if the '?' byte is a 0, and in the later location if the '?' byte is non-zero. Likewise, `m_tvalid` is either two or three clock cycles wide.
+
+Look first at the case with zero delay. If the '?' byte is a zero, we need to assert `m_tlast` at clock edge 3, but we don't get a look at the '?' byte until after clock edge 4. This is clearly impossible.
+
+Look next at the case with one cycle of delay. Now the earliest output is just after clock edge 4. This is possible, but only if we use the value of the input `s_tdata` combinatorially to create all of the output signals. This is probably feasible, but could result in more difficult timing constraints and is likely to create glitches on the output signals.
+
+In the case with two cycles of delay, we can sample the '?' byte on clock edge 5, and use that data synchronously to derive the output signals. This seems safer and cleaner.
+
+We will take two cycles of delay as our design baseline. Actual delays with handshaking taken into account will be longer if our data supplier or data consumer are not both ready to transfer data on every cycle.
+
+### Counting Bytes in Each Sequence
+
+We'll need to take special note of the input bytes that provide the length of a coded sequence, and count this value down as the remaining bytes of the sequence arrive. We'll call this value `count` and denote the counter load events as rising edges on the pseudo-signal `ctr_load` (actually we'll make a real signal `counter_load` and load `count` on a rising edge of `clk` when `counter_load` is high).
 
 ### Timing Diagram 1 Walkthrough
 For now, let's ignore the handshaking requirements and assume that `s_tvalid` and `m_tready` (our handshaking inputs) are always high. This is the full-speed case with no extra delays.

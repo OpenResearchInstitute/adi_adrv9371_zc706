@@ -1,0 +1,62 @@
+{
+ signal: [
+  {name: 'clk',
+   wave: 'p.......'},
+
+  ['Input',
+   {name: 's_tdata',
+    wave: 'x3442444',
+    data: '3 a b ?',
+    phase: 0.1
+   },
+  ],
+  ['Delay 0',
+   {name: 'm_tdata',
+    wave: 'x.444',
+    data: 'a b ?',
+    phase: 0.1
+   },
+   {name: 'm_tlast',
+    wave: '0..==0..',
+    phase: 0.1
+   },
+   {name: 'm_tvalid',
+    wave: '0.1.=0..',
+    phase: 0
+   },
+  ],
+  ['Delay 1',
+   {name: 'm_tdata',
+    wave: 'x..444',
+    data: 'a b ?',
+    phase: 0.1
+   },
+   {name: 'm_tlast',
+    wave: '0...==0.',
+    phase: 0.1
+   },
+   {name: 'm_tvalid',
+    wave: '0..1.=0.',
+    phase: 0
+   },
+  ],
+  ['Delay 2',
+   {name: 'm_tdata',
+    wave: 'x...444',
+    data: 'a b ?',
+    phase: 0.1
+   },
+   {name: 'm_tlast',
+    wave: '0....==0',
+    phase: 0.1
+   },
+   {name: 'm_tvalid',
+    wave: '0...1.=0',
+    phase: 0
+   },
+  ],
+ ],
+   head: {
+   tick: 0,
+   }   
+}

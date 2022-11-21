@@ -123,12 +123,19 @@ The diagram also shows the beginning of the next frame, which starts with a  fou
 
 ![Timing Diagram 3](COBS_dec_3.svg)
 
-Because the first sequence does not include a zero at the end, the decoder output must skip a clock cycle to stay aligned one cycle behind the input. This is no problem: we just drop m_tvalid for that clock cycle, which causes the data consumer to wait. It doesn't matter what we present on `m_tdata` during that cycle.
+Because the first sequence does not include a zero at the end, the decoder output must skip a clock cycle to stay aligned two cycles behind the input. This is no problem: we just drop m_tvalid for that clock cycle, which causes the data consumer to wait. It doesn't matter what we present on `m_tdata` during that cycle.
 
-In order to implement this special case, we create a new signal called `case_255`. It is set when we load `count` with a length of 255, and cleared when we load any other length. Then we know to deassert `m_tvalid` when `count` equals 1 and `case_255` is high. We also need to reassert `m_tvalid` one cycle later. Since we'll be writing more complicated rules for `m_tvalid` in the next section, we'll defer the details until then.
+In order to implement this special case, we create a new signal called `case_255`. It is set when we load `count` with a length of 255, and cleared when we load any other length. Then we know to deassert `m_tvalid` when `count` equals 1 and `case_255` is high. We also need to reassert `m_tvalid` one cycle later.
 
-This diagram shows another interesting case. After the 254 bytes in the first sequence, we have three bytes left in the frame, all non-zero. There is no sequence defined in COBS to send just three non-zero bytes. Instead, COBS sends the sequence for three non-zero bytes followed by a 0. The decoder has to recognize that this zero is beyond the end of the frame, and not output it. It can recognize this case by noting that the next byte of input, which would be the next sequence length if we were not at the end of a frame, is instead 0, the frame separator. So, we still deassert `m_tvalid` when `s_tdata` is 0, just as before.
+    on rising edge of clk,
+      if counter_load is high and tdata_d == 255, case_255 goes high
+      elsif counter_load is high, case_255 goes low
 
+      counter_load_d loads from counter_load
+
+      m_tvalid goes low if frame_sep is high
+      m_tvalid goes low if counter_load is high and case_255 is high
+      m_tvalid goes high if counter_load_d is high
 ### Timing Diagram 4 Walkthrough
 
 Now we will begin to introduce the complexity of handling the AXI-S handshaking signals. This timing diagram shows several cases where the `s_tvalid` signal from the data source goes low.

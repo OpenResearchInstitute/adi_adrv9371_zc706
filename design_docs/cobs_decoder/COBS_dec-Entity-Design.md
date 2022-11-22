@@ -205,3 +205,97 @@ Our existing rule for `m_tlast` gets the right answer, taking the delayed z byte
 The next two bytes (between clock edges 6 and 8, with `s_tvalid` high) are also frame separators. These are extra. We hold `count` at 0 while this is going on, because we never decrement `count` below 0.
 
 The value 5 in `s_tdata` is the first non-zero byte after the run of frame separators. That's already how we're setting for `ctr_load`, this already works.
+
+### Timing Diagram 6 Walkthrough
+
+Now we will add the final handshaking input. `m_tready` comes from the data consumer, and is high when the consumer is ready to accept input from this entity. 
+Unlike the `s_tvalid` input from the data producer, `m_tready` is allowed to come and go at any time (subject to setup and hold with respect to `clk`). We must wait whenever `m_tready` is low at the rising edge of 'clk', and we must pass the "back pressure" through to the data producer using our `s_tready` output, which we have ignored until now.
+
+We can simply copy `m_tready` to `s_tready` with no delay. That creates the same number of skipped cycles on the S interface as on the M interface, so in the long run the two interfaces stay aligned with M two bytes behind S.
+
+When `m_tready` becomes high again, we have to provide two bytes that were caught up in the delay before resuming normal operation. One of them is already saved in `tdata_d`. We will need to take special steps to save the other one in a register we'll call `saved_data`. We'll create two control signals, `save_en` to clock the `saved_data` register, and `use_saved` to remember to multiplex the `saved_data` register into `m_tdata` at the right time.
+
+The timing diagram below shows the absolute simplest case. We're in the middle of a run of non-zero bytes somewhere inside a sequence inside a frame. `s_tvalid` is always high. `m_tready` will go low once for four cycles. After things settle down from that delay, `m_tready` will go low again for a single cycle. Then after things settle down again, `m_tready` will go low, high, low for one cycle each.
+
+![Timing Diagram 6](COBS_dec_6.svg)
+
+    s_tready = m_tready
+    save_en = m_tready_d and not m_tready
+
+    on rising edge of clk,
+      saved_data is loaded from tdata_d if save_en
+      
+      m_tready_d is loaded from m_tready
+
+      use_saved goes high if save_en
+      use_saved goes low if m_tready
+
+      m_tdata is loaded with saved_data if use_saved and m_tready
+      else use previous rules for m_tdata
+
+### More Timing Diagram Walkthroughs
+TBD. Need to add
+* `m_tready` going low before, during, and after frame separator
+* `m_tready` going low after sequence length
+* `m_tready` going low at end of frame ending in zero
+* `m_tready` going low at end of frame not ending in zero
+* `m_tready` going low when `s_tvalid` is low
+* `m_tready` and `s_tvalid` going low simultaneously
+
+### Summary of Logic Equations
+So far, we've been developing the logic equations little by little. Here's a summary of all the equations, combinatorial and clocked, in my pidgin for later translation into actual HDL.
+
+#### Combinatorial Equations
+
+    frame_sep = 1 when tdata_d == 0, otherwise 0
+
+    m_tlast = frame_sep
+
+    counter_load = '1' when (tdata_d != 0 and frame_sep_d == 1 and tvalid_d == 1) or (count == 1 and tvalid_d == 1), else '0' 
+
+    m_tvalid = pre_tvalid and tvalid_dd
+    
+    s_tready = m_tready
+    
+    save_en = m_tready_d and not m_tready
+
+#### Clocked Equations
+
+    on rising edge of clk,
+    
+      if s_tvalid is high, tdata_d = s_tdata
+      
+      if counter_load is high, load count from tdata_d
+      elsif count != 0, count = count - 1
+    
+      if counter_load is high and tdata_d == 255, case_255 goes high
+      elsif counter_load is high, case_255 goes low
+
+      counter_load_d loads from counter_load
+
+      tvalid_d is loaded from s_tvalid
+
+      if tvalid_d is high,
+        frame_sep_d = frame_sep
+        if counter_load is high, load count from tdata_d
+        elsif count != 0, count = count - 1
+        
+      tvalid_dd loads from tvalid_d
+      if tvalid_d is high,
+        counter_load_d loads from counter_load
+        pre_tvalid goes high if counter_load_d is high
+
+      pre_tvalid goes low if frame_sep is high
+      pre_tvalid goes low if counter_load is high and case_255 is high
+
+      saved_data is loaded from tdata_d if save_en
+      
+      m_tready_d is loaded from m_tready
+
+      use_saved goes high if save_en
+      use_saved goes low if m_tready
+
+      if use_saved and m_tready, load m_tdata with saved_data
+      elsif counter_load is high, load m_tdata with 0
+      else load m_tdata with tdata_d
+

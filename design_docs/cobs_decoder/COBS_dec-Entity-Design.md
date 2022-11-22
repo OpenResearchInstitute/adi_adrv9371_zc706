@@ -190,31 +190,18 @@ Before we go on with handshaking, let's talk about frame separators. The paper i
 
 If we see multiple consecutive frame separators, that would seem to imply zero-length frames in between them. AXI-S has no concept of zero-length frames, though, so the best we can do is treat the whole run of consecutive frame separators as a single frame separator.
 
-If we see a frame separator arrive during the data part of a sequence, something has gone wrong. The best we can do is abort the frame in progress and begin anew. Again, AXI-S has no concept of an aborted frame, so the best we can do is to end it normally (very likely corrupted) and hope that the frame after the separator will be correct.
+If we see a frame separator arrive during the data part of a sequence, something has gone wrong. The best we can do is abort the frame in progress and begin anew. Again, AXI-S has no concept of an aborted frame, so the best we can do is to end it normally (and certainly corrupted) and hope that the frame after the separator will be correct.
 
-The timing diagram below shows both cases. At the left, we see the end of a frame, followed by multiple frame separators. Then in the middle of the next frame, we see a frame separator appearing where we expected data bytes.
+The timing diagram below shows both cases. At the left, we see the end of a frame, followed by multiple frame separators. Then in the middle of the next frame, we see a frame separator appearing where we expected data bytes. We also keep the previous pattern of `s_tvalid` just to spice things up a bit.
 
 ![Timing Diagram 5](COBS_dec_5.svg)
 
-At the left, we see the sequence of a frame, consisting of the single byte z. We know it's a single byte rather than a byte followed by a zero, because the next byte (not counting the bytes with `s_tvalid` low) is a frame separator. Our existing rule for `m_tvalid` doesn't handle this case.
+At the left, we see the last sequence of a frame, consisting of the single byte z. We know it's a single byte rather than a byte followed by a zero, because the next byte (not counting the bytes with `s_tvalid` low) is a frame separator. Our existing rule for `m_tvalid` doesn't handle this case????
 
-In the timing diagram, at rising `clk` edge 3, we don't yet know whether the coded sequence {2, z} encodes the two-byte sequence {z, 0} as it would in the middle of a frame, or the one-byte sequence {z} as it would at the end of a frame, because the frame separator has not arrived yet. At rising edge 4, we still don't know, but a propagation delay later we do know: the value of 0 on `s_tdata` allows us to conclude that the intended sequence was just {z} and that's the last byte of the frame.
+In the timing diagram, at rising `clk` edge 3, we don't yet know whether the coded sequence {2, z} encodes the two-byte sequence {z, 0} as it would in the middle of a frame, or the one-byte sequence {z} as it would at the end of a frame, because the frame separator has not arrived yet. At rising edge 4, we still don't know, because `s_tvalid` went low for that cycle. A propagation delay later we do know: the value of 0 on `s_tdata` allows us to conclude that the intended sequence was just {z} and that's the last byte of the frame.
 
-So, we have two options. We can raise `m_tlast` and `m_tvalid` immediately, between edge 4 (plus propagation delay) and edge 5, but then we must compute both signals combinationally. Or, we can raise them on edge 5 and drop them on edge 6, forcing an additional cycle of delay in the whole system.
+Our existing rule for `m_tlast` gets the right answer, taking the delayed z byte picked out by `frame_sep`.
 
-**** THIS IS TERRIBLE. I WANT SYNCHRONOUS BUT I CAN'T JUSTIFY IT UNTIL HERE
+The next two bytes (between clock edges 6 and 8, with `s_tvalid` high) are also frame separators. These are extra. We hold `count` at 0 while this is going on, because we never decrement `count` below 0.
 
-**** REWRITE! ****
-
-
-, so we need this improved rule:
-
-    `m_tvalid` goes high on a rising edge of `clk` when `s_tvalid` is high and `count` is non-zero and `s_tdata` is non-zero.
-    `m_tvalid` goes low on a rising edge of `clk` when `s_tvalid` is low or `count` is zero or `s_tdata` is zero.
-
-The next two bytes (with `s_tvalid`) are also frame separators. These are extra. We hold the `count` at 0 while this is going on, because we never decrement `count` below 0.
-
-The value 5 in `s_tdata` is the first non-zero byte after the run of frame separators. This gives us an improved rule for `ctr_load`:
-
-    Using a clock derived from `clk` by ignoring all rising edges that occur when `s_tvalid` is low, `ctr_load` occurs on the rising clock edge when the first non-zero value of `s_tdata` following a run of one or more zero values of `s_tdata` occurs.
-
+The value 5 in `s_tdata` is the first non-zero byte after the run of frame separators. That's already how we're setting for `ctr_load`, this already works.

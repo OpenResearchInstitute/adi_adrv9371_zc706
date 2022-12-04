@@ -36,15 +36,15 @@
    },
    
    {name: 'frame_sep',
-    wave: '010..............10...'
+    wave: 'x10..............10...'
    },
 
    {name: 'frame_sep_d',
-    wave: '0.1.0.............10..'
+    wave: 'x.1.0.............10..'
    },
 
    {name: 'counter_load',
-    wave: '0..10....10.....1110..',
+    wave: 'xx010....10.....1..0..',
    },
    
    {name: '~ ctr_load',
@@ -73,16 +73,16 @@
    phase: 0.1
   },
   {name: 'm_tlast',
-   wave: '0................10...',
+   wave: 'xx0..............10...',
    phase: 0.1
   },
   {name: 'm_tvalid',
-   wave: '0.....101...01.0.10.1.',
+   wave: 'xx0...101...010.1.0.1.',
    phase: 0.1
   },
     ],
   {name: 'consumed',
-   wave: '8x8888x88xx80.99',
+   wave: '8x8888x8xx880.99',
    data: 'a b c 0 d e f 0 g ...',
    phase: -6
   },
@@ -92,6 +92,6 @@
   },
   foot:{text:
   ['tspan', {class: 'muted h5'},
-   'Assumes m_tready stays high                                                  2022-11-21 Paul Williamson and Michelle Thompson'],
+   'Assumes m_tready stays high                                                  2022-12-03 Paul Williamson and Michelle Thompson'],
   },
 }

@@ -32,24 +32,8 @@
   ],
    
   {name: 'tdata_d',
-   wave: 'x44444....44444.44.4.4',
+   wave: 'x4444....444444.44.4.4',
    data: 'a b c d e f g h i j k l m n',
-   phase: 0.1
-  },
-   
-  {name: 'save_en',
-   wave: '0...10.......10.1010..',
-   phase: 0.1
-  },
-   
-  {name: 'saved_data',
-   wave: 'xxxxx4........4..4.4..',
-   data: 'd i l m',
-   phase: 0.1
-  },
-   
-  {name: 'use_saved',
-   wave: '0....1...0....10.1010.',
    phase: 0.1
   },
 
@@ -79,6 +63,6 @@
    
  foot:
   {text: ['tspan', {class: 'muted h5'},
-   '2022-11-21 Paul Williamson and Michelle Thompson'],
+   '2022-12-03 Paul Williamson and Michelle Thompson'],
   },
 }

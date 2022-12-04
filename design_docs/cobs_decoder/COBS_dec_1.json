@@ -23,7 +23,7 @@
    },
   ],
    
-  {name: 'pre_tvalid',
+  {name: 'input_pre_tvalid',
    wave: '0.1............0.1....',
    phase: 0.1
   },
@@ -87,6 +87,6 @@
  foot:
   {
    text: ['tspan', {class: 'muted h5'},
-  'Assumes s_tvalid and m_tready stay high                             2022-11-20 Paul Williamson and Michelle Thompson'],
+  'Assumes s_tvalid and m_tready stay high                             2022-12-03 Paul Williamson and Michelle Thompson'],
   },
 }

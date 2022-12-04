@@ -1,21 +1,21 @@
 # Design of an AXI-S COBS Decoder Implementation in VHDL
 
-***Work in progress. Timing details not yet final!***
-
 ## Entity Inputs and Outputs
 ### Entity Inputs
 Aside from the usual `clk` and `rst` signals, the only input to the entity is an AXI-Stream with a width of one byte. The data stream consists of frames encoded according to the rules described in [Consistent Overhead Byte Stuffing](http://www.stuartcheshire.org/papers/cobsforton.pdf) by Stuart Cheshire and Mary Baker. These rules convert a known-length stream of bytes (a "frame") with all values 0-255 into a slightly longer stream of bytes containing only values 1-255, allowing a byte with value 0 to be used unambiguously as a separator. It does this by dividing the stream into sequences of bytes. Each sequence must consist of zero to 253 non-zero bytes followed by a 0 byte or the end of stream, or 254 non-zero bytes. It is then encoded as the sequence length (1 to 254) followed by the non-zero bytes.
 
-Because the input is an AXI stream, it does not necessarily arrive continuously, with one byte delivered every clock cycle. The handshaking signals `s_tvalid` and `s_tready` take care of this. The data source asserts `s_tvalid` only when it has a valid byte available on its output. This entity only asserts `s_tready` when it is ready to accept a data byte. When both signals are asserted at a rising edge of `clk`, and only then, a byte is transferred into the entity from the data source.
+Because the input is an AXI stream, it does not necessarily arrive continuously, with one byte delivered every clock cycle. The handshaking signals `s_tvalid` and `s_tready` take care of this. The data source asserts `s_tvalid` only when it has a valid byte available on its output (and may not deassert it or change the data until that byte has been transferred). This entity only asserts `s_tready` when it is ready to accept a data byte. When both signals are asserted at a rising edge of `clk`, and only then, a byte is transferred into the entity from the data source.
 
-The input AXI stream has the ability to indicate that a certain byte is the last byte of the transfer. This information is to be ignored by this entity, which treats the input as an undifferentiated stream of bytes and divides it up based solely on the data values within the stream.
+The input AXI stream has the ability to indicate that a certain byte is the last byte of the transfer by asserting `s_tlast`. This information is to be ignored by this entity, which treats the input as an undifferentiated stream of bytes and divides it up based solely on the data values within the stream.
 
 Coded frames are separated by zero bytes. Ideally, exactly one zero byte at the beginning and exactly one zero byte after each frame. The entity must also deal with multiple zero bytes in any of those positions, without generating any extra output.
+
+Additional signals defined for AXI streams include `s_tuser` and `s_tid`. These are defined to be valid only on the first byte of an AXI transfer. Since we are ignoring the boundaries of AXI transfers, we will also ignore these signals.
 
 ### Entity Outputs
 The only output from the entity is an AXI-Stream with a width of one byte. This data stream consists of the data decoded according to the COBS rules. The AXI signal `m_tlast` is asserted along with the last byte of each frame. The zero separators are not passed along.
 
-Because the output is an AXI stream, it cannot necessarily be sent out continuously, with one byte delivered every clock cycle. The handshaking signals `m_tvalid` and `m_tready` take care of this. This entity asserts `m_tvalid` only when it has a valid byte available on its output. The data consumer only asserts `m_tready` when it is ready to accept a data byte. When both signals are asserted at a rising edge of `clk`, and only then, a byte is transferred from the entity to the data consumer. It is the responsibility of this entity to manage its `s_tready` based on its `m_tready` so that data flows through correctly.
+Because the output is an AXI stream, it cannot necessarily be sent out continuously, with one byte delivered every clock cycle. The handshaking signals `m_tvalid` and `m_tready` take care of this. This entity asserts `m_tvalid` only when it has a valid byte available on its output (and may not deassert it or change the data until that byte has been transferred). The data consumer only asserts `m_tready` when it is ready to accept a data byte. When both signals are asserted at a rising edge of `clk`, and only then, a byte is transferred from the entity to the data consumer. It is the responsibility of this entity to manage its `s_tready` based on its `m_tready` so that data flows through correctly.
 
 ## Timing Design
 ### Required Baseline Clock Delays
@@ -62,45 +62,45 @@ That's 14 total. The extra 0 at the end is not really part of the frame. It's an
 We can't see all of the second frame, but we do see the beginning of its first sequence.
   1. l m n p ... 0, length = 27
 
-The next two lines of the timing diagram show pseudo-signals that do not actually exist in the design. `pre_tvalid` is the value we'd assign to our `m_tvalid` if we were passing through the data without delay: it spans the bytes in `s_tdata` that we would be passing through. Likewise, `impossible pre_tlast` is the value we'd assign to our `m_tlast` with no delay. This is *impossible* because its value depends on the white 0 in `s_tdata` that occurs on the *following* clock cycle. This is why we have to delay the data.
+The next two lines of the timing diagram show pseudo-signals that do not actually exist in the design. `input_pre_tvalid` is the value we'd assign to our `m_tvalid` if we were passing through the data without delay: it spans the bytes in `s_tdata` that we would be passing through. Likewise, `impossible pre_tlast` is the value we'd assign to our `m_tlast` with no delay. This is *impossible* because its value depends on the white 0 in `s_tdata` that occurs on the *following* clock cycle. This is why we have to delay the data.
 
 The next line shows the input data delayed by one cycle, `tdata_d`. We can start drafting the logic equations for the decoder, shown in the gray box below. Some of these logic equations may be unfinished, and will be shown again with more refinement later in this document.
 
-    on rising edge of clk, tdata_d = s_tdata
+    on rising edge of clk, tdata_d <= s_tdata
 
 The next two lines show the detection and delay of a zero byte in the input. When a non-zero byte follows a zero byte, that's the frame length byte at the beginning of the first sequence of a frame.
 
     frame_sep = 1 when tdata_d == 0, otherwise 0
 
-    on rising edge of clk, frame_sep_d = frame_sep
+    on rising edge of clk, frame_sep_d <= frame_sep
 
-The next line shows the combinational signal `counter_load`. The counter loads on the clock edge at the end of each `s_tdata` byte containing a sequence length. We also show this as a pseudo-signal `ctr_load`, which is a copy of `clk` with arrows added where the counter will be loaded, just for visual clarity in the diagram.
+The next line shows the combinational signal `counter_load`. The counter loads on the clock edge at the end of each `tdata_d` byte containing a sequence length. We also show this as a pseudo-signal `ctr_load`, which is a copy of `clk` with arrows added where the counter will be loaded, just for visual clarity in the diagram.
 
     counter_load = '1' when (tdata_d != 0 and frame_sep_d == 1) or count == 1, else '0' 
 
-The next line shows `count`. It loads with the sequence length on the `ctr_load` edges. On other clock edges, it counts down. When it reaches 1, it will be time to insert the 0 that's (usually) at the end of each short sequence. This 0 takes the place of the sequence count for the next sequence, if there is one, or otherwise the 0 separator at the end of the frame. It will also be time for another `ctr_load` edge, to capture that new sequence length in `count`. If it also loads `count` with the 0 separator, that's harmless, because the first byte *after* the 0 separator is also time for a `ctr_load` edge, which will overwrite `count` with the next sequence length.
+The next line shows `count`. It loads with the sequence length on the `ctr_load` edges. On other clock edges, it counts down. When it reaches 1, it will be time to insert the 0 that's (usually) at the end of each short sequence. This 0 takes the place of the sequence count for the next sequence, if there is one, or otherwise the 0 separator at the end of the frame. It will also be time for another `ctr_load` edge, if there is one, to capture that new sequence length in `count`. If it also loads `count` with the 0 separator, that's harmless, because the first byte *after* the 0 separator is also time for a `ctr_load` edge, which will overwrite `count` with the next sequence length.
 
     on the rising edge of clk,
     
-      if counter_load is high, load count from tdata_d
-      elsif count != 0, count = count - 1
+      if counter_load is high, count <= tdata_d
+      elsif count != 0, count <= count - 1
 
-The next line shows our data output, `m_tdata`. The data bytes sent literally in `s_tdata` are copied from `tdata_d` into `m_tdata`, with one further cycle of delay. Each sequence length byte is replaced in `m_tdata` with a 0, which is the final 0 of the preceding sequence. The sequences in this diagram are all short (not 254 bytes long), so they all include a final 0 per the COBS protocol.
+The next line shows our data output, `m_tdata`. Those data bytes sent literally in `s_tdata` are copied from `tdata_d` into `m_tdata`, with one further cycle of delay. Each sequence length byte sent is replaced in `m_tdata` with a 0, which is the final 0 of the preceding sequence. The sequences in this diagram are all short (not 254 bytes long), so they all include a final 0 per the COBS protocol, unless they occur at the end of a frame.
 
     on the rising edge of clk,
-      if counter_load is high, load m_tdata with 0
-      else load m_tdata with tdata_d
+      if counter_load is high, m_tdata <= 0
+      else m_tdata <= data_d
 
-In between frames, we have a gap of two clock cycles. One cycle is the minimum COBS coding overhead. The other cycle is the frame separator. This is the best we can possibly do.
+In between frames, we have a gap of two clock cycles on the output. One cycle is the minimum COBS coding overhead. The other cycle is the frame separator. This is the best we can possibly do.
 
 The next line shows the `m_tlast` signal. It is high for the duration of the last byte in the frame. In this case, that happens to be the implied 0 at the end of the fourth sequence.
 
     m_tlast = frame_sep
 
-The next line shows the `m_tvalid` signal. This signal is high whenever valid data bytes are on `m_tdata`. This goes high three cycles after the preceding frame separator 0 byte in `s_tdata`, and goes low on the following frame separator 0 byte in `s_tdata`.
+The next line shows the `m_tvalid` signal. This signal is high whenever valid data bytes are on `m_tdata`. This goes high three cycles after the preceding frame separator 0 byte in `s_tdata`, and goes low one cycle after the following frame separator 0 byte in `s_tdata`.
 
     on the rising edge of clk,
-      frame_sep_dd loads from frame_sep_d
+      frame_sep_dd <= frame_sep_d
       m_tvalid goes high if frame_sep_dd is high
       m_tvalid goes low if frame_sep is high
 
@@ -124,7 +124,7 @@ We will continue to ignore the handshaking requirements and assume that `s_tvali
 
 The timing diagram below shows a first frame consisting of 257 data bytes, none of which are 0. Some of the bytes in the middle of this frame are omitted to save space in the diagram. This is encoded as two sequences. The first sequence is the same as before, a sequence of 254 non-zero bytes encoded with a pseudo-length of 255. The second sequence is encoded as if it included an extra 0 at the end, so it has a length of 4 even though only 3 actual bytes are encoded. The decoder is expected to trim off that trailing 0, per the COBS protocol.
 
-The diagram also shows the beginning of the next frame, which starts with a  four-byte sequence, which falls off the right edge of the diagram.
+The diagram also shows the beginning of the next frame, which starts with a four-byte sequence, which falls off the right edge of the diagram.
 
 ![Timing Diagram 3](COBS_dec_3.svg)
 
@@ -136,7 +136,7 @@ In order to implement this special case, we create a new signal called `case_255
       if counter_load is high and tdata_d == 255, case_255 goes high
       elsif counter_load is high, case_255 goes low
 
-      counter_load_d loads from counter_load
+      counter_load_d <= counter_load
 
       m_tvalid goes low if frame_sep is high
       m_tvalid goes low if counter_load is high and case_255 is high
@@ -157,11 +157,11 @@ The rising edges of `clk` that occur with `s_tvalid` low need to be ignored. Thi
 We create a delayed version of `s_tvalid` called `tvalid_d` to help with this, and update the rules:
 
     on rising edge of clk,
-      tvalid_d is loaded from s_tvalid
+      tvalid_d <= s_tvalid
       if tvalid_d is high,
-        frame_sep_d = frame_sep
-        if counter_load is high, load count from tdata_d
-        elsif count != 0, count = count - 1
+        frame_sep_d <= frame_sep
+        if counter_load is high, count <= tdata_d
+        elsif count != 0, count <= count - 1
 
     counter_load = '1' when (tdata_d != 0 and frame_sep_d == 1 and tvalid_d == 1) or (count == 1 and tvalid_d == 1), else '0' 
 
@@ -172,9 +172,9 @@ It's not important what data is on `m_tdata` when `m_tvalid` is low, so we can a
 So, the improved rule for `m_tvalid` is as follows:
 
     on the rising edge of clk,
-      tvalid_dd loads from tvalid_d
+      tvalid_dd <= tvalid_d
       if tvalid_d is high,
-        counter_load_d loads from counter_load
+        counter_load_d <= counter_load
         pre_tvalid goes high if counter_load_d is high
 
       pre_tvalid goes low if frame_sep is high
@@ -208,30 +208,19 @@ The value 5 in `s_tdata` is the first non-zero byte after the run of frame separ
 
 ### Timing Diagram 6 Walkthrough
 
-Now we will add the final handshaking input. `m_tready` comes from the data consumer, and is high when the consumer is ready to accept input from this entity. 
-Unlike the `s_tvalid` input from the data producer, `m_tready` is allowed to come and go at any time (subject to setup and hold with respect to `clk`). We must wait whenever `m_tready` is low at the rising edge of 'clk', and we must pass the "back pressure" through to the data producer using our `s_tready` output, which we have ignored until now.
+Now we will add the final handshaking input. `m_tready` comes from the data consumer, and is high when the consumer is ready to accept input from this entity. Unlike the `s_tvalid` input from the data producer, `m_tready` is allowed to come and go at any time (subject to setup and hold with respect to `clk`). We must wait whenever `m_tready` is low at the rising edge of 'clk', and we must pass the "back pressure" through to the data producer using our `s_tready` output, which we have ignored until now.
 
 We can simply copy `m_tready` to `s_tready` with no delay. That creates the same number of skipped cycles on the S interface as on the M interface, so in the long run the two interfaces stay aligned with M two bytes behind S.
 
-When `m_tready` becomes high again, we have to provide two bytes that were caught up in the delay before resuming normal operation. One of them is already saved in `tdata_d`. We will need to take special steps to save the other one in a register we'll call `saved_data`. We'll create two control signals, `save_en` to clock the `saved_data` register, and `use_saved` to remember to multiplex the `saved_data` register into `m_tdata` at the right time.
+It is sufficient to just freeze everything while `m_tready` is low. The first data byte we need after `m_tready` goes high again, here byte c, has already been clocked into `m_tdata`. The second data byte, here byte d, has been clocked into `tdata_d` and is available to be clocked into `m_tdata` normally. The third data byte, here byte e, is held by the data provider on `s_tdata` until we clock it in (to `tdata_d`) on the rising edge of clk after `s_tready` goes high. Subsequent data bytes are clocked through normally.
+
+It will turn out that just freezing everything works correctly for everything else, too.
 
 The timing diagram below shows the absolute simplest case. We're in the middle of a run of non-zero bytes somewhere inside a sequence inside a frame. `s_tvalid` is always high. `m_tready` will go low once for four cycles. After things settle down from that delay, `m_tready` will go low again for a single cycle. Then after things settle down again, `m_tready` will go low, high, low for one cycle each.
 
 ![Timing Diagram 6](COBS_dec_6.svg)
 
     s_tready = m_tready
-    save_en = m_tready_d and not m_tready
-
-    on rising edge of clk,
-      saved_data is loaded from tdata_d if save_en
-      
-      m_tready_d is loaded from m_tready
-
-      use_saved goes high if save_en
-      use_saved goes low if m_tready
-
-      m_tdata is loaded with saved_data if use_saved and m_tready
-      else use previous rules for m_tdata
 
 ### More Timing Diagram Walkthroughs
 TBD. Need to add
@@ -242,10 +231,21 @@ TBD. Need to add
 * `m_tready` going low when `s_tvalid` is low
 * `m_tready` and `s_tvalid` going low simultaneously
 
+### Description of Testing Approach
+
+This entity can be tested pretty thoroughly with one fairly simple setup. We just generate lots of frames, with random lengths and random contents. These frames are then encoded according to the rules of COBS, which can be done with an independently-developed library routine. This encoded data is then leavened with randomly-generated periods of `s_tvalid` low and other randomly-generated periods of `m_tready` low. These need to be generated such that `s_tvalid` never goes low while `m_tready` is already low.
+
+This set of signals is then provided as test vectors to the Vivado simulation of this entity, and the resulting output signals captured into a file.
+
+The output file is then analyzed by grabbing every byte on every rising edge of the clock at which `s_tvalid` and `m_tready` are both high, and noting the frame end when `m_tlast` is high on that same edge. If the resulting frames match the ones originally generated at random, the test passes.
+
+If the design passes a very large number of such randomly generated frames, it is probably working correctly for all valid input streams.
+
+The only way an input stream can be invalid for COBS and still be a valid AXI Stream is if the frame separator byte 0 appears within a sequence, when non-zero bytes are expected, as shown in timing diagram 5 above. Additional testing will exercise this case.
 ### Summary of Logic Equations
 So far, we've been developing the logic equations little by little. Here's a summary of all the equations, combinatorial and clocked, in my pidgin for later translation into actual HDL.
 
-#### Combinatorial Equations
+#### Preliminary Combinatorial Equations
 
     frame_sep = 1 when tdata_d == 0, otherwise 0
 
@@ -259,43 +259,39 @@ So far, we've been developing the logic equations little by little. Here's a sum
     
     save_en = m_tready_d and not m_tready
 
-#### Clocked Equations
+#### Preliminary Clocked Equations
 
-    on rising edge of clk,
+    on rising edge of clk, if m_tready is high,
     
-      if s_tvalid is high, tdata_d = s_tdata
+      if s_tvalid is high, tdata_d <= s_tdata
       
-      if counter_load is high, load count from tdata_d
-      elsif count != 0, count = count - 1
+      if counter_load is high, count <= tdata_d
+      elsif count != 0, count <= count - 1
     
       if counter_load is high and tdata_d == 255, case_255 goes high
       elsif counter_load is high, case_255 goes low
 
-      counter_load_d loads from counter_load
+      counter_load_d <= counter_load
 
-      tvalid_d is loaded from s_tvalid
+      tvalid_d <= s_tvalid
 
       if tvalid_d is high,
-        frame_sep_d = frame_sep
-        if counter_load is high, load count from tdata_d
-        elsif count != 0, count = count - 1
+        frame_sep_d <= frame_sep
+        if counter_load is high, count <= tdata_d
+        elsif count != 0, count <= count - 1
         
-      tvalid_dd loads from tvalid_d
+      tvalid_dd <= tvalid_d
       if tvalid_d is high,
-        counter_load_d loads from counter_load
+        counter_load_d <= counter_load
         pre_tvalid goes high if counter_load_d is high
 
       pre_tvalid goes low if frame_sep is high
       pre_tvalid goes low if counter_load is high and case_255 is high
-
-      saved_data is loaded from tdata_d if save_en
       
-      m_tready_d is loaded from m_tready
+      m_tdata with tdata_d
 
-      use_saved goes high if save_en
-      use_saved goes low if m_tready
+## Final Equations
 
-      if use_saved and m_tready, load m_tdata with saved_data
-      elsif counter_load is high, load m_tdata with 0
-      else load m_tdata with tdata_d
+See the VHDL source file for the final equations, which differ in a few ways from the ones developed here. The changes were developed by correcting edge cases that were caught by simulation testing.
 
+The timing diagrams were checked against the final simulations and updated to match.
